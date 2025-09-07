@@ -224,7 +224,7 @@
             } else if (activeTab === 'compound') {
               const card = allCards.find(c => c.name === cardName);
               if (card) {
-                const maxCount = card.name === "硝酸塩" ? 8 : 4;
+                const maxCount = card.name === "珪酸塩" ? 8 : 4;
                 if (newCount === 0) {
                   const newDeck = { ...compoundDeck };
                   delete newDeck[cardName];
@@ -451,11 +451,12 @@
                         setSelectedCard(card);
                         setShowCardModal(true);
                       },
-                      className: `aspect-[2/3] rounded border-2 overflow-hidden ${
+                      className: `rounded border-2 overflow-hidden ${
                         card.empty 
                           ? 'border-dashed border-gray-600 bg-gray-800' 
                           : 'border-gray-600 bg-gray-700 cursor-pointer hover:border-blue-400 transition-colors'
-                      }`
+                      }`,
+                      style: { aspectRatio: '63/88' }
                     },
                       !card.empty && React.createElement('img', {
                         src: card.image,
@@ -579,7 +580,10 @@
                 ),
                 
                 React.createElement('div', { className: "text-center mb-4" },
-                  React.createElement('div', { className: "aspect-[2/3] w-80 mx-auto rounded border-2 border-gray-600 overflow-hidden" },
+                  React.createElement('div', { 
+                    className: "w-80 mx-auto rounded border-2 border-gray-600 overflow-hidden",
+                    style: { aspectRatio: '63/88' }
+                  },
                     React.createElement('img', {
                       src: selectedCard.image,
                       alt: selectedCard.name,
