@@ -4,10 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chemica デッキビルダー</title>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/lucide-react@latest/dist/umd/lucide-react.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
@@ -18,14 +17,66 @@
     
     <script type="text/babel">
         const { useState, useMemo, useEffect, useRef } = React;
-        const { Search, Download, Upload, Plus, Minus, X } = lucide;
+
+        // アイコンを手動で定義（Lucide の代わり）
+        const Search = (props) => React.createElement('svg', { 
+          width: props.size || 24, height: props.size || 24, 
+          viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 
+          strokeWidth: 2, className: props.className 
+        }, 
+          React.createElement('circle', { cx: 11, cy: 11, r: 8 }),
+          React.createElement('path', { d: 'm21 21-4.35-4.35' })
+        );
+
+        const Download = (props) => React.createElement('svg', { 
+          width: props.size || 24, height: props.size || 24, 
+          viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 
+          strokeWidth: 2, className: props.className 
+        }, 
+          React.createElement('path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+          React.createElement('polyline', { points: '7,10 12,15 17,10' }),
+          React.createElement('line', { x1: 12, x2: 12, y1: 15, y2: 3 })
+        );
+
+        const Upload = (props) => React.createElement('svg', { 
+          width: props.size || 24, height: props.size || 24, 
+          viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 
+          strokeWidth: 2, className: props.className 
+        }, 
+          React.createElement('path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+          React.createElement('polyline', { points: '17,8 12,3 7,8' }),
+          React.createElement('line', { x1: 12, x2: 12, y1: 3, y2: 15 })
+        );
+
+        const Plus = (props) => React.createElement('svg', { 
+          width: props.size || 24, height: props.size || 24, 
+          viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 
+          strokeWidth: 2, className: props.className 
+        }, 
+          React.createElement('path', { d: 'M5 12h14' }),
+          React.createElement('path', { d: 'M12 5v14' })
+        );
+
+        const Minus = (props) => React.createElement('svg', { 
+          width: props.size || 24, height: props.size || 24, 
+          viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 
+          strokeWidth: 2, className: props.className 
+        }, 
+          React.createElement('path', { d: 'M5 12h14' })
+        );
+
+        const X = (props) => React.createElement('svg', { 
+          width: props.size || 24, height: props.size || 24, 
+          viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 
+          strokeWidth: 2, className: props.className 
+        }, 
+          React.createElement('path', { d: 'M18 6 6 18' }),
+          React.createElement('path', { d: 'M6 6l12 12' })
+        );
 
         // GitHub + jsDelivr CDN設定
         const GITHUB_REPO = 'kenotorider-gif/chemica-deck-builder';
         const CARD_BASE_URL = `https://cdn.jsdelivr.net/gh/${GITHUB_REPO}@main/cards/`;
-
-        // カードリスト（GitHub のcardsフォルダから動的に読み込み）
-        const CARD_LIST = [];
 
         // 設備投資オプション
         const equipmentOptions = [
@@ -62,18 +113,32 @@
             return `https://via.placeholder.com/120x180/4299e1/ffffff?text=${encodeURIComponent(displayText)}`;
           };
 
+          // ファイル名からカード情報を解析する関数（ハイフン形式）
+          const parseCardFromFilename = (filename) => {
+            const match = filename.match(/^([^-]+)-([^.]+)\.jpg$/);
+            if (!match) return null;
+            
+            const [, name, costStr] = match;
+            const isCompound = costStr.toLowerCase() === 'n';
+            const cost = isCompound ? 'N' : parseInt(costStr);
+            
+            return {
+              name,
+              cost,
+              isCompound,
+              type: isCompound ? 'compound' : 'normal'
+            };
+          };
+
           // GitHub のcardsフォルダからカードリストを動的に取得
           const loadCards = async () => {
             setLoading(true);
             
             try {
-              // GitHub API を使ってcardsフォルダの内容を取得
               const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/cards`);
               
               if (response.ok) {
                 const files = await response.json();
-                
-                // .jpgファイルのみを処理
                 const jpgFiles = files.filter(file => file.name.endsWith('.jpg'));
                 
                 const cards = jpgFiles.map(file => {
@@ -90,7 +155,6 @@
                 
                 setAllCards(cards);
               } else {
-                // GitHub リポジトリが見つからない場合は空配列
                 setAllCards([]);
               }
             } catch (error) {
@@ -101,29 +165,9 @@
             setLoading(false);
           };
 
-          // コンポーネントマウント時にカードデータを準備
           useEffect(() => {
             loadCards();
           }, []);
-
-          // ファイル名からカード情報を解析する関数（ハイフン形式）
-          const parseCardFromFilename = (filename) => {
-            // ファイル名形式: "カード名-コスト.jpg" または "カード名-N.jpg"（化合物）
-            const match = filename.match(/^([^-]+)-([^.]+)\.jpg$/);
-            if (!match) return null;
-            
-            const [, name, costStr] = match;
-            const isCompound = costStr.toLowerCase() === 'n';
-            const cost = isCompound ? 'N' : parseInt(costStr);
-            
-            return {
-              name,
-              cost,
-              isCompound,
-              type: isCompound ? 'compound' : 'normal',
-              image: `/cards/${filename}`
-            };
-          };
 
           // 設備投資による最大枚数計算
           const getMaxMainDeck = () => {
@@ -141,17 +185,12 @@
           const filteredCards = useMemo(() => {
             const cards = allCards.filter(card => {
               if (!searchTerm) return true;
-              
-              // コストで検索（数字の場合）
               if (!isNaN(searchTerm)) {
                 return card.cost === parseInt(searchTerm);
               }
-              
-              // カード名で検索
               return card.name.toLowerCase().includes(searchTerm.toLowerCase());
             });
 
-            // コスト順にソート（Nコストは最後）
             return cards.sort((a, b) => {
               if (a.cost === 'N' && b.cost !== 'N') return 1;
               if (b.cost === 'N' && a.cost !== 'N') return -1;
@@ -212,64 +251,26 @@
             }
           };
 
-          // 設備投資データを読みやすい形式に変換
-          const getEquipmentSummary = () => {
-            return Object.entries(equipment).map(([key, count]) => {
-              const option = equipmentOptions.find(opt => opt.id === key);
-              return option ? {
-                name: option.name,
-                cost: option.cost,
-                count: count,
-                totalCost: option.cost * count
-              } : null;
-            }).filter(Boolean);
-          };
-
-          // デッキリスト出力用のデータ生成（完全版）
+          // エクスポート機能
           const generateDeckList = () => {
-            const equipmentSummary = getEquipmentSummary();
-            
             const deckData = {
               version: "1.0",
               timestamp: new Date().toISOString(),
-              appName: "Chemica デッキビルダー",
-              // デッキデータ
               mainDeck,
               compoundDeck,
               equipment,
-              // 詳細な設備投資情報
-              equipmentDetails: equipmentSummary,
-              // メタデータ
               metadata: {
                 mainDeckCount,
                 compoundDeckCount,
                 equipmentCost,
                 maxMainDeck: getMaxMainDeck(),
-                maxCompoundDeck: getMaxCompoundDeck(),
-                // デッキの詳細統計
-                mainDeckCards: Object.entries(mainDeck).map(([name, count]) => ({
-                  name, 
-                  count, 
-                  card: allCards.find(c => c.name === name)
-                })),
-                compoundDeckCards: Object.entries(compoundDeck).map(([name, count]) => ({
-                  name, 
-                  count,
-                  card: allCards.find(c => c.name === name)
-                }))
-              },
-              // 追加情報
-              exportInfo: {
-                userAgent: navigator.userAgent,
-                exportDate: new Date().toLocaleDateString('ja-JP'),
-                exportTime: new Date().toLocaleTimeString('ja-JP')
+                maxCompoundDeck: getMaxCompoundDeck()
               }
             };
             
             const dataStr = JSON.stringify(deckData, null, 2);
             const dataBlob = new Blob([dataStr], { type: 'application/json' });
             
-            // ファイル名に日時を含める
             const now = new Date();
             const filename = `chemica_deck_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.chemica`;
             
@@ -283,7 +284,7 @@
             URL.revokeObjectURL(url);
           };
 
-          // デッキデータのインポート（完全対応版）
+          // インポート機能
           const importDeckData = (event) => {
             const file = event.target.files[0];
             if (!file) return;
@@ -293,32 +294,21 @@
               try {
                 const deckData = JSON.parse(e.target.result);
                 
-                // バージョンチェック
                 if (!deckData.version || deckData.version !== "1.0") {
                   alert('サポートされていないファイル形式です');
                   return;
                 }
 
-                // データの妥当性チェック
                 if (!deckData.mainDeck || !deckData.compoundDeck || typeof deckData.equipment === 'undefined') {
                   alert('不正なデッキファイルです');
                   return;
                 }
 
-                // 詳細情報の表示
-                const equipmentInfo = deckData.equipmentDetails ? 
-                  deckData.equipmentDetails.map(eq => `${eq.name} x${eq.count}`).join('\n') : 
-                  '設備投資なし';
-
-                // インポート前の確認
                 const shouldImport = window.confirm(
                   `このデッキをインポートしますか？\n\n` +
-                  `【デッキ構成】\n` +
                   `メインデッキ: ${deckData.metadata?.mainDeckCount || 0}枚\n` +
                   `化合物デッキ: ${deckData.metadata?.compoundDeckCount || 0}枚\n` +
                   `設備投資: ${deckData.metadata?.equipmentCost || 0}束\n\n` +
-                  `【設備投資詳細】\n${equipmentInfo}\n\n` +
-                  `【作成日時】\n${deckData.exportInfo?.exportDate || '不明'} ${deckData.exportInfo?.exportTime || ''}\n\n` +
                   `※現在のデッキは上書きされます`
                 );
 
@@ -331,16 +321,14 @@
 
               } catch (error) {
                 console.error('Import error:', error);
-                alert('ファイルの読み込みに失敗しました\nファイルが破損しているか、対応していない形式です');
+                alert('ファイルの読み込みに失敗しました');
               }
             };
 
             reader.readAsText(file);
-            // ファイル入力をリセット（同じファイルを再選択可能にする）
             event.target.value = '';
           };
 
-          // インポートボタンのクリック処理
           const handleImportClick = () => {
             fileInputRef.current?.click();
           };
@@ -359,7 +347,6 @@
               }
             });
 
-            // 最大枚数になるまで空スロットを追加
             const maxCards = activeTab === 'main' ? getMaxMainDeck() : getMaxCompoundDeck();
             while (cards.length < maxCards) {
               cards.push({ empty: true, key: `empty-${cards.length}` });
@@ -401,7 +388,6 @@
             // デッキエリア
             React.createElement('div', { className: "p-4 bg-gray-800 border-b" },
               activeTab === 'equipment' ? (
-                // 設備投資画面
                 React.createElement('div', { className: "space-y-3" },
                   React.createElement('div', { className: "text-center text-sm text-gray-400 mb-4" }, `予算: ${equipmentCost}/4束`),
                   equipmentOptions.map(option =>
@@ -427,7 +413,6 @@
                   )
                 )
               ) : (
-                // デッキグリッド
                 React.createElement('div', { className: "grid grid-cols-5 gap-2 h-64 overflow-y-auto" },
                   getDeckCards().map(card =>
                     React.createElement('div', {
@@ -558,11 +543,7 @@
                 React.createElement('div', { className: "text-center mb-4" },
                   React.createElement('div', { className: "aspect-[2/3] w-32 mx-auto bg-blue-600 rounded border-2 border-gray-600 p-3" },
                     React.createElement('div', { className: "font-bold" }, selectedCard.name),
-                    React.createElement('div', {}, `コスト: ${selectedCard.cost}`),
-                    selectedCard.power && React.createElement(React.Fragment, {},
-                      React.createElement('div', {}, `パワー: ${selectedCard.power}`),
-                      React.createElement('div', {}, `mol: ${selectedCard.mol}`)
-                    )
+                    React.createElement('div', {}, `コスト: ${selectedCard.cost}`)
                   )
                 ),
 
