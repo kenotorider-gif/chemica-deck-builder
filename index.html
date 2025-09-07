@@ -217,7 +217,7 @@
             } else if (activeTab === 'compound') {
               const card = allCards.find(c => c.name === cardName);
               if (card) {
-                const maxCount = card.name === "珪酸塩" ? 8 : 4;
+                const maxCount = card.name === "硝酸塩" ? 8 : 4;
                 setCompoundDeck(prev => ({
                   ...prev,
                   [cardName]: Math.min((prev[cardName] || 0) + count, maxCount)
@@ -308,7 +308,7 @@
                   `このデッキをインポートしますか？\n\n` +
                   `メインデッキ: ${deckData.metadata?.mainDeckCount || 0}枚\n` +
                   `化合物デッキ: ${deckData.metadata?.compoundDeckCount || 0}枚\n` +
-                  `設備投資: ${deckData.metadata?.equipmentCost || 0}束\n\n` +
+                  `設備投資: ${deckData.metadata?.equipmentCost || 0}枠\n\n` +
                   `※現在のデッキは上書きされます`
                 );
 
@@ -379,7 +379,7 @@
                 },
                   tab.label,
                   React.createElement('span', { className: "block text-xs text-gray-400" },
-                    tab.key === 'equipment' ? `${tab.count}/4束` : `${tab.count}/${tab.max || 0}枚`
+                    tab.key === 'equipment' ? `${tab.count}/4枠` : `${tab.count}/${tab.max || 0}枚`
                   )
                 )
               )
@@ -389,12 +389,12 @@
             React.createElement('div', { className: "p-4 bg-gray-800 border-b" },
               activeTab === 'equipment' ? (
                 React.createElement('div', { className: "space-y-3" },
-                  React.createElement('div', { className: "text-center text-sm text-gray-400 mb-4" }, `予算: ${equipmentCost}/4束`),
+                  React.createElement('div', { className: "text-center text-sm text-gray-400 mb-4" }, `予算: ${equipmentCost}/4枠`),
                   equipmentOptions.map(option =>
                     React.createElement('div', { key: option.id, className: "flex items-center justify-between bg-gray-700 p-3 rounded" },
                       React.createElement('div', {},
                         React.createElement('div', { className: "font-medium" }, option.name),
-                        React.createElement('div', { className: "text-sm text-gray-400" }, `${option.cost}束`)
+                        React.createElement('div', { className: "text-sm text-gray-400" }, `${option.cost}枠`)
                       ),
                       React.createElement('div', { className: "flex items-center space-x-2" },
                         React.createElement('button', {
@@ -417,16 +417,20 @@
                   getDeckCards().map(card =>
                     React.createElement('div', {
                       key: card.key,
-                      className: `aspect-[2/3] rounded border-2 ${
+                      className: `aspect-[2/3] rounded border-2 overflow-hidden ${
                         card.empty 
                           ? 'border-dashed border-gray-600 bg-gray-800' 
                           : 'border-gray-600 bg-gray-700'
                       }`
                     },
-                      !card.empty && React.createElement('div', { className: "w-full h-full bg-blue-600 rounded text-xs p-1 overflow-hidden" },
-                        React.createElement('div', { className: "font-bold text-center" }, card.name),
-                        React.createElement('div', { className: "text-center" }, card.cost)
-                      )
+                      !card.empty && React.createElement('img', {
+                        src: card.image,
+                        alt: card.name,
+                        className: "w-full h-full object-cover",
+                        onError: (e) => {
+                          e.target.src = card.placeholderImage;
+                        }
+                      })
                     )
                   )
                 )
@@ -525,13 +529,13 @@
               }),
               
               React.createElement('div', { className: "text-center text-xs text-gray-500 mt-2" },
-                `メイン: ${mainDeckCount}/${getMaxMainDeck()}枚 | 化合物: ${compoundDeckCount}/${getMaxCompoundDeck()}枚 | 設備: ${equipmentCost}/4束`
+                `メイン: ${mainDeckCount}/${getMaxMainDeck()}枚 | 化合物: ${compoundDeckCount}/${getMaxCompoundDeck()}枚 | 設備: ${equipmentCost}/4枠`
               )
             ),
 
-            // カード詳細モーダル
+            // カード詳細モーダル（サイズを2倍に拡大）
             showCardModal && selectedCard && React.createElement('div', { className: "fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" },
-              React.createElement('div', { className: "bg-gray-800 p-6 rounded-lg max-w-sm w-full mx-4" },
+              React.createElement('div', { className: "bg-gray-800 p-6 rounded-lg max-w-lg w-full mx-4" },
                 React.createElement('div', { className: "flex justify-between items-center mb-4" },
                   React.createElement('h3', { className: "text-lg font-bold" }, selectedCard.name),
                   React.createElement('button', {
@@ -541,9 +545,15 @@
                 ),
                 
                 React.createElement('div', { className: "text-center mb-4" },
-                  React.createElement('div', { className: "aspect-[2/3] w-32 mx-auto bg-blue-600 rounded border-2 border-gray-600 p-3" },
-                    React.createElement('div', { className: "font-bold" }, selectedCard.name),
-                    React.createElement('div', {}, `コスト: ${selectedCard.cost}`)
+                  React.createElement('div', { className: "aspect-[2/3] w-64 mx-auto rounded border-2 border-gray-600 overflow-hidden" },
+                    React.createElement('img', {
+                      src: selectedCard.image,
+                      alt: selectedCard.name,
+                      className: "w-full h-full object-cover",
+                      onError: (e) => {
+                        e.target.src = selectedCard.placeholderImage;
+                      }
+                    })
                   )
                 ),
 
