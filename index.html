@@ -99,6 +99,7 @@
           const [showCardModal, setShowCardModal] = useState(false);
           const [allCards, setAllCards] = useState([]);
           const [loading, setLoading] = useState(true);
+          const [deckName, setDeckName] = useState('');
           const fileInputRef = useRef(null);
 
           // GitHub CDN から画像URLを生成（ハイフン形式）
@@ -207,23 +208,41 @@
             return sum + (option ? option.cost * count : 0);
           }, 0);
 
-          // カード追加
-          const addCardToDeck = (cardName, count) => {
+          // カード枚数変更
+          const changeCardCount = (cardName, newCount) => {
             if (activeTab === 'main') {
-              setMainDeck(prev => ({
-                ...prev,
-                [cardName]: Math.min((prev[cardName] || 0) + count, 4)
-              }));
+              if (newCount === 0) {
+                const newDeck = { ...mainDeck };
+                delete newDeck[cardName];
+                setMainDeck(newDeck);
+              } else {
+                setMainDeck(prev => ({
+                  ...prev,
+                  [cardName]: Math.min(newCount, 4)
+                }));
+              }
             } else if (activeTab === 'compound') {
               const card = allCards.find(c => c.name === cardName);
               if (card) {
                 const maxCount = card.name === "硝酸塩" ? 8 : 4;
-                setCompoundDeck(prev => ({
-                  ...prev,
-                  [cardName]: Math.min((prev[cardName] || 0) + count, maxCount)
-                }));
+                if (newCount === 0) {
+                  const newDeck = { ...compoundDeck };
+                  delete newDeck[cardName];
+                  setCompoundDeck(newDeck);
+                } else {
+                  setCompoundDeck(prev => ({
+                    ...prev,
+                    [cardName]: Math.min(newCount, maxCount)
+                  }));
+                }
               }
             }
+          };
+
+          // カード追加（旧関数を保持）
+          const addCardToDeck = (cardName, count) => {
+            const currentCount = (activeTab === 'main' ? mainDeck : compoundDeck)[cardName] || 0;
+            changeCardCount(cardName, currentCount + count);
             setShowCardModal(false);
           };
 
@@ -256,6 +275,7 @@
             const deckData = {
               version: "1.0",
               timestamp: new Date().toISOString(),
+              deckName: deckName || "Untitled_Deck",
               mainDeck,
               compoundDeck,
               equipment,
@@ -272,7 +292,9 @@
             const dataBlob = new Blob([dataStr], { type: 'application/json' });
             
             const now = new Date();
-            const filename = `chemica_deck_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.chemica`;
+            const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+            const safeDeckName = (deckName || "Untitled_Deck").replace(/[^a-zA-Z0-9_\-\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, '_');
+            const filename = `${safeDeckName}_${dateStr}.chemica`;
             
             const url = URL.createObjectURL(dataBlob);
             const link = document.createElement('a');
@@ -316,6 +338,7 @@
                   setMainDeck(deckData.mainDeck || {});
                   setCompoundDeck(deckData.compoundDeck || {});
                   setEquipment(deckData.equipment || {});
+                  setDeckName(deckData.deckName || '');
                   alert('デッキをインポートしました！');
                 }
 
@@ -358,7 +381,14 @@
           return React.createElement('div', { className: "w-full max-w-md mx-auto bg-gray-900 text-white min-h-screen" },
             // ヘッダー
             React.createElement('div', { className: "bg-blue-800 p-4" },
-              React.createElement('h1', { className: "text-xl font-bold text-center" }, "Chemica デッキビルダー")
+              React.createElement('h1', { className: "text-xl font-bold text-center mb-3" }, "Chemica デッキビルダー"),
+              React.createElement('input', {
+                type: "text",
+                placeholder: "デッキ名を入力...",
+                value: deckName,
+                onChange: (e) => setDeckName(e.target.value),
+                className: "w-full px-3 py-2 bg-blue-700 border border-blue-600 rounded text-white placeholder-blue-300 focus:outline-none focus:border-blue-400"
+              })
             ),
 
             // タブ
@@ -417,10 +447,14 @@
                   getDeckCards().map(card =>
                     React.createElement('div', {
                       key: card.key,
+                      onClick: card.empty ? undefined : () => {
+                        setSelectedCard(card);
+                        setShowCardModal(true);
+                      },
                       className: `aspect-[2/3] rounded border-2 overflow-hidden ${
                         card.empty 
                           ? 'border-dashed border-gray-600 bg-gray-800' 
-                          : 'border-gray-600 bg-gray-700'
+                          : 'border-gray-600 bg-gray-700 cursor-pointer hover:border-blue-400 transition-colors'
                       }`
                     },
                       !card.empty && React.createElement('img', {
@@ -533,9 +567,9 @@
               )
             ),
 
-            // カード詳細モーダル（サイズを2倍に拡大）
+            // カード詳細モーダル（サイズを2.5倍に拡大）
             showCardModal && selectedCard && React.createElement('div', { className: "fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" },
-              React.createElement('div', { className: "bg-gray-800 p-6 rounded-lg max-w-lg w-full mx-4" },
+              React.createElement('div', { className: "bg-gray-800 p-6 rounded-lg max-w-xl w-full mx-4" },
                 React.createElement('div', { className: "flex justify-between items-center mb-4" },
                   React.createElement('h3', { className: "text-lg font-bold" }, selectedCard.name),
                   React.createElement('button', {
@@ -545,7 +579,7 @@
                 ),
                 
                 React.createElement('div', { className: "text-center mb-4" },
-                  React.createElement('div', { className: "aspect-[2/3] w-64 mx-auto rounded border-2 border-gray-600 overflow-hidden" },
+                  React.createElement('div', { className: "aspect-[2/3] w-80 mx-auto rounded border-2 border-gray-600 overflow-hidden" },
                     React.createElement('img', {
                       src: selectedCard.image,
                       alt: selectedCard.name,
@@ -557,24 +591,39 @@
                   )
                 ),
 
-                React.createElement('div', { className: "flex items-center justify-center space-x-4" },
+                React.createElement('div', { className: "flex items-center justify-center space-x-4 mb-4" },
                   React.createElement('button', {
-                    onClick: () => addCardToDeck(selectedCard.name, 1),
-                    className: "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-                  }, "+1枚"),
+                    onClick: () => {
+                      const currentCount = ((activeTab === 'main' ? mainDeck : compoundDeck)[selectedCard.name] || 0);
+                      changeCardCount(selectedCard.name, Math.max(0, currentCount - 1));
+                    },
+                    className: "w-10 h-10 bg-red-600 hover:bg-red-700 text-white rounded flex items-center justify-center font-bold",
+                    disabled: !((activeTab === 'main' ? mainDeck : compoundDeck)[selectedCard.name] || 0)
+                  }, React.createElement(Minus, { size: 18 })),
+                  
+                  React.createElement('div', { className: "flex flex-col items-center" },
+                    React.createElement('span', { className: "text-2xl font-bold" }, 
+                      ((activeTab === 'main' ? mainDeck : compoundDeck)[selectedCard.name] || 0)
+                    ),
+                    React.createElement('span', { className: "text-sm text-gray-400" }, "枚")
+                  ),
+                  
                   React.createElement('button', {
-                    onClick: () => addCardToDeck(selectedCard.name, 2),
-                    className: "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-                  }, "+2枚"),
-                  React.createElement('button', {
-                    onClick: () => addCardToDeck(selectedCard.name, 4),
-                    className: "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-                  }, "+4枚")
+                    onClick: () => {
+                      const currentCount = ((activeTab === 'main' ? mainDeck : compoundDeck)[selectedCard.name] || 0);
+                      const card = allCards.find(c => c.name === selectedCard.name);
+                      const maxCount = card && card.name === "珪酸塩塩" ? 8 : 4;
+                      changeCardCount(selectedCard.name, Math.min(maxCount, currentCount + 1));
+                    },
+                    className: "w-10 h-10 bg-green-600 hover:bg-green-700 text-white rounded flex items-center justify-center font-bold",
+                    disabled: (() => {
+                      const currentCount = ((activeTab === 'main' ? mainDeck : compoundDeck)[selectedCard.name] || 0);
+                      const card = allCards.find(c => c.name === selectedCard.name);
+                      const maxCount = card && card.name === "珪酸塩" ? 8 : 4;
+                      return currentCount >= maxCount;
+                    })()
+                  }, React.createElement(Plus, { size: 18 }))
                 ),
-
-                React.createElement('div', { className: "text-center mt-3 text-sm text-gray-400" },
-                  `現在: ${((activeTab === 'main' ? mainDeck : compoundDeck)[selectedCard.name] || 0)}枚`
-                )
               )
             )
           );
