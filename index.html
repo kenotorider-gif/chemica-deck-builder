@@ -50,9 +50,9 @@
           const [loading, setLoading] = useState(true);
           const fileInputRef = useRef(null);
 
-          // GitHub CDN から画像URLを生成
+          // GitHub CDN から画像URLを生成（ハイフン形式）
           const getCardImageUrl = (cardName, cost) => {
-            const filename = `${cardName}:${cost}.jpg`;
+            const filename = `${cardName}-${cost}.jpg`;
             return `${CARD_BASE_URL}${encodeURIComponent(filename)}`;
           };
 
@@ -106,10 +106,10 @@
             loadCards();
           }, []);
 
-          // ファイル名からカード情報を解析する関数
+          // ファイル名からカード情報を解析する関数（ハイフン形式）
           const parseCardFromFilename = (filename) => {
-            // ファイル名形式: "カード名:コスト.jpg" または "カード名:N.jpg"（化合物）
-            const match = filename.match(/^([^:]+):([^.]+)\.jpg$/);
+            // ファイル名形式: "カード名-コスト.jpg" または "カード名-N.jpg"（化合物）
+            const match = filename.match(/^([^-]+)-([^.]+)\.jpg$/);
             if (!match) return null;
             
             const [, name, costStr] = match;
@@ -212,20 +212,57 @@
             }
           };
 
-          // デッキリスト出力用のデータ生成
+          // 設備投資データを読みやすい形式に変換
+          const getEquipmentSummary = () => {
+            return Object.entries(equipment).map(([key, count]) => {
+              const option = equipmentOptions.find(opt => opt.id === key);
+              return option ? {
+                name: option.name,
+                cost: option.cost,
+                count: count,
+                totalCost: option.cost * count
+              } : null;
+            }).filter(Boolean);
+          };
+
+          // デッキリスト出力用のデータ生成（完全版）
           const generateDeckList = () => {
+            const equipmentSummary = getEquipmentSummary();
+            
             const deckData = {
               version: "1.0",
               timestamp: new Date().toISOString(),
+              appName: "Chemica デッキビルダー",
+              // デッキデータ
               mainDeck,
               compoundDeck,
               equipment,
+              // 詳細な設備投資情報
+              equipmentDetails: equipmentSummary,
+              // メタデータ
               metadata: {
                 mainDeckCount,
                 compoundDeckCount,
                 equipmentCost,
                 maxMainDeck: getMaxMainDeck(),
-                maxCompoundDeck: getMaxCompoundDeck()
+                maxCompoundDeck: getMaxCompoundDeck(),
+                // デッキの詳細統計
+                mainDeckCards: Object.entries(mainDeck).map(([name, count]) => ({
+                  name, 
+                  count, 
+                  card: allCards.find(c => c.name === name)
+                })),
+                compoundDeckCards: Object.entries(compoundDeck).map(([name, count]) => ({
+                  name, 
+                  count,
+                  card: allCards.find(c => c.name === name)
+                }))
+              },
+              // 追加情報
+              exportInfo: {
+                userAgent: navigator.userAgent,
+                exportDate: new Date().toLocaleDateString('ja-JP'),
+                exportTime: new Date().toLocaleTimeString('ja-JP')
               }
             };
             
@@ -246,7 +283,7 @@
             URL.revokeObjectURL(url);
           };
 
-          // デッキデータのインポート
+          // デッキデータのインポート（完全対応版）
           const importDeckData = (event) => {
             const file = event.target.files[0];
             if (!file) return;
@@ -263,30 +300,38 @@
                 }
 
                 // データの妥当性チェック
-                if (!deckData.mainDeck || !deckData.compoundDeck || !deckData.equipment) {
+                if (!deckData.mainDeck || !deckData.compoundDeck || typeof deckData.equipment === 'undefined') {
                   alert('不正なデッキファイルです');
                   return;
                 }
 
+                // 詳細情報の表示
+                const equipmentInfo = deckData.equipmentDetails ? 
+                  deckData.equipmentDetails.map(eq => `${eq.name} x${eq.count}`).join('\n') : 
+                  '設備投資なし';
+
                 // インポート前の確認
                 const shouldImport = window.confirm(
                   `このデッキをインポートしますか？\n\n` +
+                  `【デッキ構成】\n` +
                   `メインデッキ: ${deckData.metadata?.mainDeckCount || 0}枚\n` +
                   `化合物デッキ: ${deckData.metadata?.compoundDeckCount || 0}枚\n` +
                   `設備投資: ${deckData.metadata?.equipmentCost || 0}束\n\n` +
+                  `【設備投資詳細】\n${equipmentInfo}\n\n` +
+                  `【作成日時】\n${deckData.exportInfo?.exportDate || '不明'} ${deckData.exportInfo?.exportTime || ''}\n\n` +
                   `※現在のデッキは上書きされます`
                 );
 
                 if (shouldImport) {
-                  setMainDeck(deckData.mainDeck);
-                  setCompoundDeck(deckData.compoundDeck);
-                  setEquipment(deckData.equipment);
+                  setMainDeck(deckData.mainDeck || {});
+                  setCompoundDeck(deckData.compoundDeck || {});
+                  setEquipment(deckData.equipment || {});
                   alert('デッキをインポートしました！');
                 }
 
               } catch (error) {
                 console.error('Import error:', error);
-                alert('ファイルの読み込みに失敗しました');
+                alert('ファイルの読み込みに失敗しました\nファイルが破損しているか、対応していない形式です');
               }
             };
 
@@ -429,7 +474,7 @@
                   React.createElement('div', { className: "text-sm text-gray-500" },
                     "GitHub リポジトリの cards フォルダに",
                     React.createElement('br'),
-                    "「カード名:コスト.jpg」形式でファイルを配置してください"
+                    "「カード名-コスト.jpg」形式でファイルを配置してください"
                   )
                 )
               ) : (
