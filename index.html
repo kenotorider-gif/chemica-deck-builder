@@ -612,7 +612,7 @@
                     onClick: () => {
                       const currentCount = ((activeTab === 'main' ? mainDeck : compoundDeck)[selectedCard.name] || 0);
                       const card = allCards.find(c => c.name === selectedCard.name);
-                      const maxCount = card && card.name === "珪酸塩塩" ? 8 : 4;
+                      const maxCount = card && card.name === "珪酸塩" ? 8 : 4;
                       changeCardCount(selectedCard.name, Math.min(maxCount, currentCount + 1));
                     },
                     className: "w-10 h-10 bg-green-600 hover:bg-green-700 text-white rounded flex items-center justify-center font-bold",
